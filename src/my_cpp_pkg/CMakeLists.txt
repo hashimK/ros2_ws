@@ -12,6 +12,7 @@ find_package(example_interfaces REQUIRED)
 find_package(px4_msgs REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(px4_ros_com REQUIRED)
+find_package(geometry_msgs REQUIRED)
 
 add_executable(cpp_node src/my_first_node.cpp)
 ament_target_dependencies(cpp_node rclcpp)
@@ -31,6 +32,9 @@ ament_target_dependencies(px4_ros2_gps_subscriber rclcpp px4_msgs)
 add_executable(px4_ros2_read_attitude src/px4_ros2_read_attitude.cpp)
 ament_target_dependencies(px4_ros2_read_attitude rclcpp px4_msgs tf2 px4_ros_com)
 
+add_executable(px4_ros2_offboard_attitude src/px4_ros2_offboard_attitude.cpp)
+ament_target_dependencies(px4_ros2_offboard_attitude rclcpp px4_msgs px4_ros_com geometry_msgs)
+
 install(TARGETS
         cpp_node
         robot_news_station
@@ -38,6 +42,7 @@ install(TARGETS
         px4_ros2_offboard_example
         px4_ros2_gps_subscriber
         px4_ros2_read_attitude
+        px4_ros2_offboard_attitude
         DESTINATION lib/${PROJECT_NAME}
         )
 
