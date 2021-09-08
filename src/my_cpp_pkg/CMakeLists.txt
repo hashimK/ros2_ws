@@ -9,6 +9,7 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(example_interfaces REQUIRED)
+find_package(px4_msgs REQUIRED)
 
 add_executable(cpp_node src/my_first_node.cpp)
 ament_target_dependencies(cpp_node rclcpp)
@@ -16,9 +17,13 @@ ament_target_dependencies(cpp_node rclcpp)
 add_executable(robot_news_station src/robot_news_station.cpp)
 ament_target_dependencies(robot_news_station rclcpp example_interfaces)
 
+add_executable(px4_ros2_subscriber_example src/px4_ros2_subscriber_example.cpp)
+ament_target_dependencies(px4_ros2_subscriber_example rclcpp px4_msgs)
+
 install(TARGETS
         cpp_node
         robot_news_station
+        px4_ros2_subscriber_example
         DESTINATION lib/${PROJECT_NAME}
         )
 
