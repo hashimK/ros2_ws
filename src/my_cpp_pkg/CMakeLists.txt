@@ -20,10 +20,14 @@ ament_target_dependencies(robot_news_station rclcpp example_interfaces)
 add_executable(px4_ros2_subscriber_example src/px4_ros2_subscriber_example.cpp)
 ament_target_dependencies(px4_ros2_subscriber_example rclcpp px4_msgs)
 
+add_executable(px4_ros2_offboard_example src/px4_ros2_offboard_example.cpp)
+ament_target_dependencies(px4_ros2_offboard_example rclcpp px4_msgs)
+
 install(TARGETS
         cpp_node
         robot_news_station
         px4_ros2_subscriber_example
+        px4_ros2_offboard_example
         DESTINATION lib/${PROJECT_NAME}
         )
 
