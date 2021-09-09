@@ -157,8 +157,11 @@ def main(args=None):
                     button_states[button] = value
                     if value:
                         print("%s pressed" % (button))
-                    else:
-                        print("%s released" % (button))
+                        if button=="a":
+                            manual_commands.linear.z = 1.0
+                        if button=="b":
+                            manual_commands.linear.z = 0.0
+
 
             if type & 0x02:
                 axis = axis_map[number]
