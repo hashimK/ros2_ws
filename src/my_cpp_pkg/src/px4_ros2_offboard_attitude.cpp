@@ -1,8 +1,10 @@
 #include <px4_msgs/msg/offboard_control_mode.hpp>
 #include <px4_msgs/msg/vehicle_attitude_setpoint.hpp>
+#include <px4_msgs/msg/trajectory_setpoint.hpp>
 #include <px4_msgs/msg/timesync.hpp>
 #include <px4_msgs/msg/vehicle_command.hpp>
 #include <px4_msgs/msg/vehicle_control_mode.hpp>
+#include <px4_msgs/msg/vehicle_odometry.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <stdint.h>
 #include <math.h>
@@ -26,6 +28,11 @@ public:
         pitch_angle_limit_ = 45.0;
         roll_angle_limit_ = 45.0;
         yaw_angle_limit_ = 90.0;
+		change_mode_ = 0.0;
+
+		pos_x_ = 0.0f;
+		pos_y_ = 0.0f;
+		pos_z_ = 0.0f;
 
 		offboard_control_mode_publisher_ =
 			this->create_publisher<OffboardControlMode>("fmu/offboard_control_mode/in", 10);
@@ -33,6 +40,8 @@ public:
 			this->create_publisher<VehicleAttitudeSetpoint>("fmu/vehicle_attitude_setpoint/in", 10);
 		vehicle_command_publisher_ =
 			this->create_publisher<VehicleCommand>("fmu/vehicle_command/in", 10);
+		trajectory_setpoint_publisher_ =
+			this->create_publisher<TrajectorySetpoint>("fmu/trajectory_setpoint/in", 10);
 
 
 		// get common timestamp
@@ -44,6 +53,16 @@ public:
 
         joystick_subscriber_ = this->create_subscription<geometry_msgs::msg::Twist>("cmd_vel_continous",10,
                                     std::bind(&OffboardControl::callbackJoystick, this,std::placeholders::_1));
+		
+		odometry_subscription_ = this->create_subscription<px4_msgs::msg::VehicleOdometry>("fmu/vehicle_odometry/out",10,
+			[this](const px4_msgs::msg::VehicleOdometry::UniquePtr msg) {
+				if (change_mode_== 0.0)
+				{
+					pos_x_ = msg->x;
+					pos_y_ = msg->y;
+					pos_z_ = msg->z;
+				}
+		});
 
 		offboard_setpoint_counter_ = 0;
 
@@ -60,6 +79,7 @@ public:
             		// offboard_control_mode needs to be paired with vehicle_attitude_setpoint
 			publish_offboard_control_mode();
 			publish_vehicle_attitude_setpoint();
+			publish_trajectory_setpoint();
 
            		 // stop the counter after reaching 11
 			if (offboard_setpoint_counter_ < 11) {
@@ -81,6 +101,8 @@ private:
 	rclcpp::Subscription<px4_msgs::msg::Timesync>::SharedPtr timesync_sub_;
 
     rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr joystick_subscriber_;
+	rclcpp::Publisher<TrajectorySetpoint>::SharedPtr trajectory_setpoint_publisher_;
+	rclcpp::Subscription<px4_msgs::msg::VehicleOdometry>::SharedPtr odometry_subscription_;
 
     double roll_;
     double pitch_;
@@ -89,13 +111,19 @@ private:
     double pitch_angle_limit_;
     double roll_angle_limit_;
     double yaw_angle_limit_;
+	double change_mode_;
+
+	float pos_x_;
+	float pos_y_;
+	float pos_z_;
 
 	std::atomic<uint64_t> timestamp_;   //!< common synced timestamped
 
 	uint64_t offboard_setpoint_counter_;   //!< counter for the number of setpoints sent
 
-	void publish_offboard_control_mode() const;
+	void publish_offboard_control_mode() ;
 	void publish_vehicle_attitude_setpoint() ;
+	void publish_trajectory_setpoint() const;
 	void publish_vehicle_command(uint16_t command, float param1 = 0.0,
 				     float param2 = 0.0) const;
 
@@ -103,8 +131,9 @@ private:
     {
         pitch_ = (msg->linear.x*pitch_angle_limit_)*-1.0*M_PI/180.0;
         roll_ = (msg->linear.y*roll_angle_limit_)*M_PI/180.0;
-        yaw_ = (msg->angular.y*yaw_angle_limit_)*M_PI/180.0;
         throttle_ = msg->angular.x;
+		change_mode_ = msg->linear.z;
+		if (change_mode_==0.0) yaw_ = (msg->angular.y*yaw_angle_limit_)*M_PI/180.0;
     }
 };
 
@@ -130,14 +159,26 @@ void OffboardControl::disarm() const {
  * @brief Publish the offboard control mode.
  *        For this example, only position and altitude controls are active.
  */
-void OffboardControl::publish_offboard_control_mode() const {
+void OffboardControl::publish_offboard_control_mode() {
 	OffboardControlMode msg{};
 	msg.timestamp = timestamp_.load();
-	msg.position = false;
-	msg.velocity = false;
-	msg.acceleration = false;
-	msg.attitude = true;
-	msg.body_rate = false;
+	if (change_mode_==1.0)
+	{
+		msg.position = true;
+		msg.velocity = false;
+		msg.acceleration = false;
+		msg.attitude = false;
+		msg.body_rate = false;
+	}
+	else
+	{
+		msg.position = false;
+		msg.velocity = false;
+		msg.acceleration = false;
+		msg.attitude = true;
+		msg.body_rate = false;
+	}
+	
 
 	offboard_control_mode_publisher_->publish(msg);
 }
@@ -148,6 +189,23 @@ void OffboardControl::publish_offboard_control_mode() const {
  *        For this example, it sends a trajectory setpoint to make the
  *        vehicle hover at 5 meters with a yaw angle of 180 degrees.
  */
+void OffboardControl::publish_trajectory_setpoint() const {
+	TrajectorySetpoint msg{};
+	msg.timestamp = timestamp_.load();
+	// msg.x = 0.0;
+	// msg.y = 0.0;
+	// msg.z = -5.0;
+	// msg.yaw = -3.14; // [-PI:PI]
+
+	msg.x = pos_x_;
+	msg.y = pos_y_;
+	msg.z = pos_z_;
+	msg.yaw = yaw_; // [-PI:PI]
+
+	trajectory_setpoint_publisher_->publish(msg);
+}
+
+
 void OffboardControl::publish_vehicle_attitude_setpoint()  {
 	VehicleAttitudeSetpoint msg{};
 	msg.timestamp = timestamp_.load();
