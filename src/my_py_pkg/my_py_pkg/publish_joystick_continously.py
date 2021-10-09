@@ -18,13 +18,15 @@ class PublishContinously(Node):
         self.yaw = 0.0
         self.throttle = 0.0
         self.change_mode = 0.0
+        self.flight_mode = 0.0
 
     def callback_joystick(self, data):
         self.pitch = data.linear.x
         self.roll = data.linear.y
         self.change_mode = data.linear.z
         self.throttle = data.angular.x
-        self.yaw = data.angular.y    
+        self.yaw = data.angular.y  
+        self.flight_mode = data.angular.z  
     
     def publish_continously(self):
         msg = Twist()
@@ -33,7 +35,7 @@ class PublishContinously(Node):
         msg.linear.z = self.change_mode
         msg.angular.x = self.throttle
         msg.angular.y = self.yaw
-        msg.angular.z = random.uniform(0, 1)
+        msg.angular.z = self.flight_mode
         self.publisher_.publish(msg)
 
 

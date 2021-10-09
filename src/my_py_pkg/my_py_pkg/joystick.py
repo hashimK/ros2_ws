@@ -101,7 +101,7 @@ def main(args=None):
     button_map = []
 
     # Open the joystick device.
-    fn = '/dev/input/js0'
+    fn = '/dev/input/js1'
     print('Opening %s...' % fn)
     jsdev = open(fn, 'rb')
 
@@ -157,10 +157,14 @@ def main(args=None):
                     button_states[button] = value
                     if value:
                         print("%s pressed" % (button))
-                        if button=="a":
+                        if button=="thumb":
                             manual_commands.linear.z = 1.0
-                        if button=="b":
+                        if button=="thumb2":
                             manual_commands.linear.z = 0.0
+                        if button=="trigger":
+                            manual_commands.angular.z = 1.0
+                        if button=="top":
+                            manual_commands.angular.z = 0.0
 
 
             if type & 0x02:
@@ -171,10 +175,10 @@ def main(args=None):
                     print("%s: %.3f" % (axis, fvalue))
 
                     #Pitch
-                    if axis=="ry":
+                    if axis=="z":
                         manual_commands.linear.x = round(fvalue, 1)*-1.0
                     #Roll
-                    if axis=="rx":
+                    if axis=="rz":
                         manual_commands.linear.y = round(fvalue, 1)
                     #Throttle
                     if axis=="y":

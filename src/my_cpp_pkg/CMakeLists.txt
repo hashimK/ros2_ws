@@ -38,6 +38,12 @@ ament_target_dependencies(px4_ros2_offboard_attitude rclcpp px4_msgs px4_ros_com
 add_executable(px4_ros2_manual_control src/px4_ros2_manual_control.cpp)
 ament_target_dependencies(px4_ros2_manual_control rclcpp px4_msgs px4_ros_com geometry_msgs)
 
+add_executable(px4_ros2_joystick_manual_control src/px4_ros2_joystick_manual_control.cpp)
+ament_target_dependencies(px4_ros2_joystick_manual_control rclcpp px4_msgs px4_ros_com geometry_msgs)
+
+add_executable(px4_ros2_read_manual_control_switches src/px4_ros2_read_manual_control_switches.cpp)
+ament_target_dependencies(px4_ros2_read_manual_control_switches rclcpp px4_msgs px4_ros_com geometry_msgs)
+
 install(TARGETS
         cpp_node
         robot_news_station
@@ -47,6 +53,8 @@ install(TARGETS
         px4_ros2_read_attitude
         px4_ros2_offboard_attitude
         px4_ros2_manual_control
+        px4_ros2_joystick_manual_control
+        px4_ros2_read_manual_control_switches
         DESTINATION lib/${PROJECT_NAME}
         )
 
