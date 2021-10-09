@@ -211,7 +211,7 @@ void ManualControl::publish_manual_control_setpoint()  {
 	msg.y     = 0.f;
 	msg.x     = 0.f;
 	msg.r     = 0.f;
-	msg.z     = 1.f;
+	msg.z     = 0.f;
 	msg.flaps = 0.f;
 	msg.aux1  = 0.f;
 	msg.aux2  = 0.f;
