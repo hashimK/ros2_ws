@@ -33,9 +33,13 @@ include_directories(include)
 add_executable(px4_ros2_commander src/px4_ros2_commander.cpp)
 ament_target_dependencies(px4_ros2_commander rclcpp px4_msgs px4_ros_com geometry_msgs)
 
+add_executable(px4_ros2_informer src/px4_ros2_informer.cpp)
+ament_target_dependencies(px4_ros2_informer rclcpp px4_msgs px4_ros_com geometry_msgs)
+
 # Install Cpp executables
 install(TARGETS
-px4_ros2_commander
+  px4_ros2_commander
+  px4_ros2_informer
   DESTINATION lib/${PROJECT_NAME}
 )
 
@@ -45,6 +49,7 @@ ament_python_install_package(${PROJECT_NAME})
 # Install Python executables
 install(PROGRAMS
   ${PROJECT_NAME}/cloud_commander.py
+  ${PROJECT_NAME}/cloud_informer.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
