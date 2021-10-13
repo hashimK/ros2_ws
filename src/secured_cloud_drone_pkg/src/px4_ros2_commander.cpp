@@ -4,6 +4,9 @@
 #include <px4_msgs/msg/manual_control_setpoint.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <stdint.h>
+#include <px4_msgs/msg/vehicle_attitude.hpp>
+#include <tf2/LinearMath/Quaternion.h>
+#include <tf2/LinearMath/Matrix3x3.h>
 #include <math.h>
 #include <px4_ros_com/frame_transforms.h>
 #include <geometry_msgs/msg/twist.hpp>
@@ -29,6 +32,12 @@ public:
 		flight_mode_ = 0.0;
 		prev_flight_mode_ = 0.0;
 		flight_mode_transition_ = false;
+
+		speech_h_displacement_ = 0.0;
+		speech_v_displacement_ = 0.0;
+		speech_yaw_ = 0.0;
+
+		flight_yaw_ = 0.0;
 
 		manual_control_setpoint_publisher_ =
 			this->create_publisher<ManualControlSetpoint>("fmu/manual_control_setpoint/in", 10);
@@ -83,6 +92,8 @@ private:
 	rclcpp::Subscription<px4_msgs::msg::Timesync>::SharedPtr timesync_sub_;
 	rclcpp::Publisher<VehicleCommand>::SharedPtr vehicle_command_publisher_;
     rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr web_app_subscriber_;
+	rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr speech_subscriber_;
+	rclcpp::Subscription<px4_msgs::msg::VehicleAttitude>::SharedPtr vehicle_attitude_subscription_;
 
     double roll_pwm_;
     double pitch_pwm_;
@@ -91,9 +102,15 @@ private:
 	double arm_status_;
 	double prev_arm_status_;
 	bool arm_transition_;
-	double flight_mode_ = 0.0;
-	double prev_flight_mode_ = 0.0;
-	bool flight_mode_transition_ = true;
+	double flight_mode_ ;
+	double prev_flight_mode_;
+	bool flight_mode_transition_;
+
+	double speech_h_displacement_;
+	double speech_v_displacement_;
+	double speech_yaw_;
+
+	double flight_yaw_;
 
 
 	std::atomic<uint64_t> timestamp_;   //!< common synced timestamped
