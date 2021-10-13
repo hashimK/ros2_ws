@@ -15,13 +15,13 @@ using namespace std::chrono;
 using namespace std::chrono_literals;
 using namespace px4_msgs::msg;
 
-class ManualControl : public rclcpp::Node {
+class DroneController : public rclcpp::Node {
 public:
-	ManualControl() : Node("manual_control") {
-		roll_ = 0.0;
-        pitch_ = 0.0;
-        yaw_ = 0.0;
-        throttle_ = 0.0f;
+	DroneController() : Node("drone_controller") {
+		roll_pwm_ = 0.0;
+        pitch_pwm_ = 0.0;
+        yaw_pwm_ = 0.0;
+        throttle_pwm_ = 0.0f;
 		arm_status_ = 0.0;
 		prev_arm_status_ = 0.0;
 		arm_transition_ = false;
@@ -43,8 +43,8 @@ public:
 					timestamp_.store(msg->timestamp);
 				});
 
-        joystick_subscriber_ = this->create_subscription<geometry_msgs::msg::Twist>("cloud_commands",10,
-                                    std::bind(&ManualControl::callbackJoystick, this,std::placeholders::_1));
+        web_app_subscriber_ = this->create_subscription<geometry_msgs::msg::Twist>("cloud_web_app_commands",10,
+                                    std::bind(&DroneController::callbackWebApp, this,std::placeholders::_1));
 		
 
 		auto timer_callback = [this]() -> void {
@@ -82,12 +82,12 @@ private:
 	rclcpp::Publisher<ManualControlSetpoint>::SharedPtr manual_control_setpoint_publisher_;
 	rclcpp::Subscription<px4_msgs::msg::Timesync>::SharedPtr timesync_sub_;
 	rclcpp::Publisher<VehicleCommand>::SharedPtr vehicle_command_publisher_;
-    rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr joystick_subscriber_;
+    rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr web_app_subscriber_;
 
-    double roll_;
-    double pitch_;
-    double yaw_;
-    float throttle_;
+    double roll_pwm_;
+    double pitch_pwm_;
+    double yaw_pwm_;
+    float throttle_pwm_;
 	double arm_status_;
 	double prev_arm_status_;
 	bool arm_transition_;
@@ -102,12 +102,12 @@ private:
 	void publish_vehicle_command(uint16_t command, float param1 = 0.0,float param2 = 0.0) const;
 
 
-    void callbackJoystick(const geometry_msgs::msg::Twist::SharedPtr msg)
+    void callbackWebApp(const geometry_msgs::msg::Twist::SharedPtr msg)
     {
-        pitch_ = msg->linear.x;
-        roll_ = msg->linear.y;
-        throttle_ = msg->angular.x;
-		yaw_ = msg->angular.y;
+        pitch_pwm_ = msg->linear.x;
+        roll_pwm_ = msg->linear.y;
+        throttle_pwm_ = msg->angular.x;
+		yaw_pwm_ = msg->angular.y;
 		arm_status_ = msg->linear.z;
 		if (arm_status_!=prev_arm_status_)
 		{
@@ -126,7 +126,7 @@ private:
 /**
  * @brief Send a command to Arm the vehicle
  */
-void ManualControl::arm() const {
+void DroneController::arm() const {
 	publish_vehicle_command(VehicleCommand::VEHICLE_CMD_COMPONENT_ARM_DISARM, 1.0);
 
 	RCLCPP_INFO(this->get_logger(), "Arm command send");
@@ -135,22 +135,22 @@ void ManualControl::arm() const {
 /**
  * @brief Send a command to Disarm the vehicle
  */
-void ManualControl::disarm() const {
+void DroneController::disarm() const {
 	publish_vehicle_command(VehicleCommand::VEHICLE_CMD_COMPONENT_ARM_DISARM, 0.0);
 
 	RCLCPP_INFO(this->get_logger(), "Disarm command send");
 }
 
-void ManualControl::publish_manual_control_setpoint()  {
+void DroneController::publish_manual_control_setpoint()  {
 	ManualControlSetpoint msg{};
 	msg.timestamp = timestamp_.load();
 	msg.data_source = 2;
 
 	// limit controls
-	msg.y     = roll_;
-	msg.x     = pitch_;
-	msg.r     = yaw_;
-	msg.z     = throttle_;
+	msg.y     = roll_pwm_;
+	msg.x     = pitch_pwm_;
+	msg.r     = yaw_pwm_;
+	msg.z     = throttle_pwm_;
 	msg.flaps = 0.f;
 	msg.aux1  = 0.f;
 	msg.aux2  = 0.f;
@@ -168,7 +168,7 @@ void ManualControl::publish_manual_control_setpoint()  {
  * @param param1    Command parameter 1
  * @param param2    Command parameter 2
  */
-void ManualControl::publish_vehicle_command(uint16_t command, float param1,
+void DroneController::publish_vehicle_command(uint16_t command, float param1,
 					      float param2) const {
 	VehicleCommand msg{};
 	msg.timestamp = timestamp_.load();
@@ -187,10 +187,10 @@ void ManualControl::publish_vehicle_command(uint16_t command, float param1,
 
 
 int main(int argc, char* argv[]) {
-	std::cout << "Starting manual control node..." << std::endl;
+	std::cout << "Starting drone_controller node..." << std::endl;
 	setvbuf(stdout, NULL, _IONBF, BUFSIZ);
 	rclcpp::init(argc, argv);
-	rclcpp::spin(std::make_shared<ManualControl>());
+	rclcpp::spin(std::make_shared<DroneController>());
 
 	rclcpp::shutdown();
 	return 0;
