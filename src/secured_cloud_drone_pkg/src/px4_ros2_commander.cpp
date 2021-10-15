@@ -36,6 +36,7 @@ public:
 		speech_h_displacement_ = 0.0;
 		speech_v_displacement_ = 0.0;
 		speech_yaw_ = 0.0;
+		speech_activation_status_ = false;
 
 		flight_yaw_ = 0.0;
 
@@ -54,6 +55,23 @@ public:
 
         web_app_subscriber_ = this->create_subscription<geometry_msgs::msg::Twist>("cloud_web_app_commands",10,
                                     std::bind(&DroneController::callbackWebApp, this,std::placeholders::_1));
+
+		speech_subscriber_ = this->create_subscription<geometry_msgs::msg::Twist>("cloud_speech_commands",10,
+                                    std::bind(&DroneController::callbackSpeech, this,std::placeholders::_1));
+
+		
+		vehicle_attitude_subscription_ = this->create_subscription<px4_msgs::msg::VehicleAttitude>(
+			"fmu/vehicle_attitude/out",
+			10,
+			[this](const px4_msgs::msg::VehicleAttitude::UniquePtr msg) {
+			// frame conversion needed to convert from NED frame to ENU frame and then parse quaternion
+			quatd_ = px4_ros_com::frame_transforms::utils::quaternion::array_to_eigen_quat(msg->q);
+			double roll, pitch, yaw;
+			px4_ros_com::frame_transforms::utils::quaternion::quaternion_to_euler(quatd_,roll,pitch,yaw);
+			roll = roll*180/M_PI;
+			pitch = pitch*180/M_PI;
+			flight_yaw_ = yaw*180/M_PI;
+		});
 		
 
 		auto timer_callback = [this]() -> void {
@@ -94,6 +112,7 @@ private:
     rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr web_app_subscriber_;
 	rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr speech_subscriber_;
 	rclcpp::Subscription<px4_msgs::msg::VehicleAttitude>::SharedPtr vehicle_attitude_subscription_;
+	Eigen::Quaterniond quatd_;
 
     double roll_pwm_;
     double pitch_pwm_;
@@ -109,6 +128,7 @@ private:
 	double speech_h_displacement_;
 	double speech_v_displacement_;
 	double speech_yaw_;
+	bool speech_activation_status_;
 
 	double flight_yaw_;
 
@@ -116,7 +136,7 @@ private:
 	std::atomic<uint64_t> timestamp_;   //!< common synced timestamped
 
 	void publish_manual_control_setpoint() ;
-	void publish_vehicle_command(uint16_t command, float param1 = 0.0,float param2 = 0.0) const;
+	void publish_vehicle_command(uint16_t command, float param1 = 0.0,float param2 = 0.0) const;   
 
 
     void callbackWebApp(const geometry_msgs::msg::Twist::SharedPtr msg)
@@ -137,6 +157,14 @@ private:
 			flight_mode_transition_ = true;
 			prev_flight_mode_ = flight_mode_;
 		}
+    }
+
+	void callbackSpeech(const geometry_msgs::msg::Twist::SharedPtr msg)
+    {
+        speech_h_displacement_ = msg->linear.x;
+		speech_yaw_ = msg->angular.z;
+		speech_v_displacement_ = msg->linear.z;
+		speech_activation_status_ = (msg->angular.x > 0) ? true : false;
     }
 };
 
