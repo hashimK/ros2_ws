@@ -84,6 +84,7 @@ class CloudCommander(Node):
         speech_msg.linear.x = float(self.offboard_h_disp)
         speech_msg.linear.z = float(self.offboard_v_disp)
         speech_msg.angular.z = float(self.offboard_yaw)
+        speech_msg.angular.x = float(self.speech_activated)
         self.speech_publisher_.publish(speech_msg)
 
 def main(args=None):
