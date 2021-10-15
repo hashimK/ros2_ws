@@ -24,6 +24,7 @@ class CloudInformer(Node):
         self.amsl = 0.0
         self.groundspeed = 0.0
         self.yaw = 0.0
+        self.subscription_started = False
 
         self.subscriber_ = self.create_subscription(Twist,"cloud_telemetry",self.callback_cloud_telemetry,10)
         self.timer_ = self.create_timer(2,self.publish_to_cloud_continously) # publish data to cloud every 2 seconds
@@ -34,17 +35,19 @@ class CloudInformer(Node):
         self.amsl = msg.linear.z
         self.groundspeed = msg.angular.x
         self.yaw = msg.angular.y
+        self.subscription_started = True
 
     def publish_to_cloud_continously(self):
-        self.ts = time.time()
-        self.telemetryCollectionRef.document(str(int(self.ts))).set({
-            u'id' :int(self.ts),
-            u'gps_location': firebase_admin.firestore.GeoPoint(self.latitude, self.longitude),
-            u'altitude_amsl': self.amsl,
-            u'groundspeed': self.groundspeed,
-            u'yaw': self.yaw,
-            u'timestamp': datetime.datetime.now()
-        })
+        if self.subscription_started:
+            self.ts = time.time()
+            self.telemetryCollectionRef.document(str(int(self.ts))).set({
+                u'id' :int(self.ts),
+                u'gps_location': firebase_admin.firestore.GeoPoint(self.latitude, self.longitude),
+                u'altitude_amsl': self.amsl,
+                u'groundspeed': self.groundspeed,
+                u'yaw': self.yaw,
+                u'timestamp': datetime.datetime.now()
+            })
 
 
 
