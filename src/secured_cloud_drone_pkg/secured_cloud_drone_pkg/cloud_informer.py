@@ -43,9 +43,9 @@ class CloudInformer(Node):
             self.telemetryCollectionRef.document(str(int(self.ts))).set({
                 u'id' :int(self.ts),
                 u'gps_location': firebase_admin.firestore.GeoPoint(self.latitude, self.longitude),
-                u'altitude_amsl': self.amsl,
-                u'groundspeed': self.groundspeed,
-                u'yaw': self.yaw,
+                u'altitude_amsl': round(self.amsl,1),
+                u'groundspeed': round(self.groundspeed,1),
+                u'yaw': round(self.yaw,1),
                 u'timestamp': datetime.datetime.now()
             })
 
