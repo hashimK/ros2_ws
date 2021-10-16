@@ -42,13 +42,28 @@ public:
 			"fmu/vehicle_attitude/out",
 			10,
 			[this](const px4_msgs::msg::VehicleAttitude::UniquePtr msg) {
-			// frame conversion needed to convert from NED frame to ENU frame and then parse quaternion
-			quatd_ = px4_ros_com::frame_transforms::utils::quaternion::array_to_eigen_quat(msg->q);
+	
+			// * @param q  Attitude quaternion (w, x, y, z order, zero-rotation is 1, 0, 0, 0)
+			tf2::Quaternion qt(
+				msg->q[3],
+				msg->q[0],
+				msg->q[1],
+				msg->q[2]);
+			tf2::Matrix3x3 m(qt);
 			double roll, pitch, yaw;
-			px4_ros_com::frame_transforms::utils::quaternion::quaternion_to_euler(quatd_,roll,pitch,yaw);
-			roll = roll*180/M_PI;
-			pitch = pitch*180/M_PI;
-			yaw_ = yaw*180/M_PI;
+			m.getRPY(roll, pitch, yaw);
+			yaw_  = 180 - yaw*180/M_PI; // to get yaw in NED frame
+
+			// std::cout << "roll" << std::endl;
+			// std::cout << roll*180/M_PI << std::endl;
+			// std::cout << "pitch" << std::endl;
+			// std::cout << pitch*180/M_PI << std::endl;
+			// std::cout << "yaw" << std::endl;
+			// std::cout << yaw*180/M_PI<< std::endl;
+
+
+
+			
 		});
 	}
 
