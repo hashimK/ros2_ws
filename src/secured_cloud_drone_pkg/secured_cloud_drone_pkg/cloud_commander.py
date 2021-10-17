@@ -44,6 +44,7 @@ class CloudCommander(Node):
         self.offboard_h_disp = 0.0
         self.offboard_v_disp = 0.0
         self.offboard_yaw = 0.0
+        self.prev_speech_activated = False
 
     # Create a callback on_snapshot function to capture changes
     def joystick_on_snapshot(self, doc_snapshot, changes, read_time):
@@ -69,6 +70,15 @@ class CloudCommander(Node):
             self.offboard_h_disp = doc.to_dict()['h_displacement']
             self.offboard_v_disp = doc.to_dict()['v_displacement']
             self.offboard_yaw = doc.to_dict()['yaw']
+        
+        if self.prev_speech_activated != self.speech_activated:
+            # displaying offboard mode in web UI
+            if self.speech_activated:
+                self.flightmode_doc_ref.update({
+                    u'mode' : 6
+                })
+            self.prev_speech_activated = self.speech_activated
+            
     
     def publish_continously(self):
         web_app_msg = Twist()
