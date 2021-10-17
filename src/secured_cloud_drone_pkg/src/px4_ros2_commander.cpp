@@ -351,6 +351,7 @@ void DroneController::publish_trajectory_setpoint() const {
 
 
 
+
 int main(int argc, char* argv[]) {
 	std::cout << "Starting drone_controller node..." << std::endl;
 	setvbuf(stdout, NULL, _IONBF, BUFSIZ);
