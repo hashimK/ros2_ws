@@ -2,9 +2,11 @@
 #include <px4_msgs/msg/vehicle_command.hpp>
 #include <px4_msgs/msg/vehicle_control_mode.hpp>
 #include <px4_msgs/msg/manual_control_setpoint.hpp>
+#include <px4_msgs/msg/vehicle_odometry.hpp>
+#include <px4_msgs/msg/trajectory_setpoint.hpp>
+#include <px4_msgs/msg/offboard_control_mode.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <stdint.h>
-#include <px4_msgs/msg/vehicle_attitude.hpp>
 #include <tf2/LinearMath/Quaternion.h>
 #include <tf2/LinearMath/Matrix3x3.h>
 #include <math.h>
@@ -35,16 +37,32 @@ public:
 
 		speech_h_displacement_ = 0.0;
 		speech_v_displacement_ = 0.0;
-		speech_yaw_ = 0.0;
+		speech_yaw_ = -1.0;
 		speech_activation_status_ = false;
+		prev_speech_h_displacement_ = 0.0;
+		prev_speech_v_displacement_ = 0.0;
+		prev_speech_yaw_ = -1.0;
+		prev_speech_activation_status_ = false;
 
 		flight_yaw_ = 0.0;
+
+		pos_x_ = 0.0f;
+		pos_y_ = 0.0f;
+		pos_z_ = 0.0f;
+
+		capture_once_ = false;
 
 		manual_control_setpoint_publisher_ =
 			this->create_publisher<ManualControlSetpoint>("fmu/manual_control_setpoint/in", 10);
 
 		vehicle_command_publisher_ =
 			this->create_publisher<VehicleCommand>("fmu/vehicle_command/in", 10);
+
+		offboard_control_mode_publisher_ =
+			this->create_publisher<OffboardControlMode>("fmu/offboard_control_mode/in", 10);
+
+		trajectory_setpoint_publisher_ =
+			this->create_publisher<TrajectorySetpoint>("fmu/trajectory_setpoint/in", 10);
 
 		// get common timestamp
 		timesync_sub_ =
@@ -59,19 +77,36 @@ public:
 		speech_subscriber_ = this->create_subscription<geometry_msgs::msg::Twist>("cloud_speech_commands",10,
                                     std::bind(&DroneController::callbackSpeech, this,std::placeholders::_1));
 
-		
-		vehicle_attitude_subscription_ = this->create_subscription<px4_msgs::msg::VehicleAttitude>(
-			"fmu/vehicle_attitude/out",
-			10,
-			[this](const px4_msgs::msg::VehicleAttitude::UniquePtr msg) {
-			// frame conversion needed to convert from NED frame to ENU frame and then parse quaternion
-			quatd_ = px4_ros_com::frame_transforms::utils::quaternion::array_to_eigen_quat(msg->q);
-			double roll, pitch, yaw;
-			px4_ros_com::frame_transforms::utils::quaternion::quaternion_to_euler(quatd_,roll,pitch,yaw);
-			roll = roll*180/M_PI;
-			pitch = pitch*180/M_PI;
-			flight_yaw_ = yaw*180/M_PI;
+		odometry_subscription_ = this->create_subscription<px4_msgs::msg::VehicleOdometry>("fmu/vehicle_odometry/out",10,
+			[this](const px4_msgs::msg::VehicleOdometry::UniquePtr msg) {
+				if (capture_once_ == true)
+				{
+					pos_x_ = msg->x;
+					pos_y_ = msg->y;
+					pos_z_ = msg->z;
+
+					// * @param q  Attitude quaternion (w, x, y, z order, zero-rotation is 1, 0, 0, 0)
+					tf2::Quaternion qt(
+						msg->q[3],
+						msg->q[0],
+						msg->q[1],
+						msg->q[2]);
+					tf2::Matrix3x3 m(qt);
+					double roll, pitch, yaw;
+					m.getRPY(roll, pitch, yaw);
+					flight_yaw_  = 180 - yaw*180/M_PI; // to get yaw in NED frame
+
+					std::cout << "=================================="   << std::endl;
+					std::cout << "flight_yaw_degrees: "      << flight_yaw_    << std::endl;
+					std::cout << "pos_x_: "      << pos_x_    << std::endl;
+					std::cout << "pos_y_: "      << pos_y_    << std::endl;
+					std::cout << "pos_z_: "      << pos_z_    << std::endl;
+
+					capture_once_ = false;
+				}
 		});
+
+		offboard_setpoint_counter_ = 0;
 		
 
 		auto timer_callback = [this]() -> void {
@@ -95,7 +130,31 @@ public:
 			}
 
 			publish_manual_control_setpoint();
-			
+
+			if (speech_activation_status_== true)
+			{
+				if (offboard_setpoint_counter_ == 10) 
+				{
+					// Change to Offboard mode after 10 setpoints
+					this->publish_vehicle_command(VehicleCommand::VEHICLE_CMD_DO_SET_MODE, 1, 6);
+
+					// Arm the vehicle if not previously armed
+					if (arm_status_<1.0)
+					{
+						this->arm();
+					}
+				}
+
+				// publish offboard setpoints
+				publish_offboard_control_mode();
+				publish_trajectory_setpoint();
+			}
+
+			// stop the counter after reaching 11
+			if (offboard_setpoint_counter_ < 11) {
+				offboard_setpoint_counter_++;
+			}
+
 		};
 		timer_ = this->create_wall_timer(100ms, timer_callback);
 	}
@@ -106,12 +165,16 @@ public:
 private:
 	rclcpp::TimerBase::SharedPtr timer_;
 
-	rclcpp::Publisher<ManualControlSetpoint>::SharedPtr manual_control_setpoint_publisher_;
 	rclcpp::Subscription<px4_msgs::msg::Timesync>::SharedPtr timesync_sub_;
-	rclcpp::Publisher<VehicleCommand>::SharedPtr vehicle_command_publisher_;
     rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr web_app_subscriber_;
 	rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr speech_subscriber_;
-	rclcpp::Subscription<px4_msgs::msg::VehicleAttitude>::SharedPtr vehicle_attitude_subscription_;
+	rclcpp::Subscription<px4_msgs::msg::VehicleOdometry>::SharedPtr odometry_subscription_;
+
+	rclcpp::Publisher<ManualControlSetpoint>::SharedPtr manual_control_setpoint_publisher_;
+	rclcpp::Publisher<VehicleCommand>::SharedPtr vehicle_command_publisher_;
+	rclcpp::Publisher<TrajectorySetpoint>::SharedPtr trajectory_setpoint_publisher_;
+	rclcpp::Publisher<OffboardControlMode>::SharedPtr offboard_control_mode_publisher_;
+
 	Eigen::Quaterniond quatd_;
 
     double roll_pwm_;
@@ -129,12 +192,25 @@ private:
 	double speech_v_displacement_;
 	double speech_yaw_;
 	bool speech_activation_status_;
+	double prev_speech_h_displacement_;
+	double prev_speech_v_displacement_;
+	double prev_speech_yaw_;
+	bool prev_speech_activation_status_;
 
 	double flight_yaw_;
 
+	float pos_x_;
+	float pos_y_;
+	float pos_z_;
+
+	bool capture_once_;
+
+	uint64_t offboard_setpoint_counter_;   //!< counter for the number of setpoints sent
 
 	std::atomic<uint64_t> timestamp_;   //!< common synced timestamped
 
+	void publish_offboard_control_mode() ;
+	void publish_trajectory_setpoint() const;
 	void publish_manual_control_setpoint() ;
 	void publish_vehicle_command(uint16_t command, float param1 = 0.0,float param2 = 0.0) const;   
 
@@ -165,6 +241,19 @@ private:
 		speech_yaw_ = msg->angular.z;
 		speech_v_displacement_ = msg->linear.z;
 		speech_activation_status_ = (msg->angular.x > 0) ? true : false;
+		if (speech_activation_status_ == false)
+		{
+			offboard_setpoint_counter_=0;
+		}
+
+		if((prev_speech_h_displacement_!=speech_h_displacement_) || (prev_speech_v_displacement_!=speech_v_displacement_) || (prev_speech_yaw_!=speech_yaw_) || (prev_speech_activation_status_!=speech_activation_status_) )
+		{
+			capture_once_ = true;
+			prev_speech_h_displacement_ = speech_h_displacement_;
+			prev_speech_v_displacement_ = speech_v_displacement_;
+			prev_speech_yaw_ = speech_yaw_;
+			prev_speech_activation_status_ = speech_activation_status_;
+		}
     }
 };
 
@@ -227,6 +316,37 @@ void DroneController::publish_vehicle_command(uint16_t command, float param1,
 	msg.from_external = true;
 
 	vehicle_command_publisher_->publish(msg);
+}
+
+
+/**
+ * @brief Publish the offboard control mode.
+ *        For this example, only position and altitude controls are active.
+ */
+void DroneController::publish_offboard_control_mode() {
+	OffboardControlMode msg{};
+	msg.timestamp = timestamp_.load();
+	msg.position = true;
+	msg.velocity = false;
+	msg.acceleration = false;
+	msg.attitude = false;
+	msg.body_rate = false;
+	offboard_control_mode_publisher_->publish(msg);
+}
+
+
+/**
+ * @brief Publish a trajectory setpoint from the user's speech command
+ */
+void DroneController::publish_trajectory_setpoint() const {
+	TrajectorySetpoint msg{};
+	msg.timestamp = timestamp_.load();
+
+	msg.yaw = (speech_yaw_ == -1.0) ? flight_yaw_*M_PI/180.0 : speech_yaw_*M_PI/180.0 ;
+	msg.x = pos_x_ + speech_h_displacement_ * cos( msg.yaw );
+	msg.y = pos_y_+ speech_h_displacement_ * sin( msg.yaw );
+	msg.z = pos_z_ - speech_v_displacement_; // -ve sign to transform ENU frame of ROS to NED frame of PX4
+	trajectory_setpoint_publisher_->publish(msg);
 }
 
 

@@ -90,7 +90,6 @@ private:
 
 	rclcpp::Subscription<px4_msgs::msg::VehicleGpsPosition>::SharedPtr vehicle_position_speed_subscription_;
 	rclcpp::Subscription<px4_msgs::msg::VehicleAttitude>::SharedPtr vehicle_attitude_subscription_;
-    Eigen::Quaterniond quatd_;
 };
 
 int main(int argc, char *argv[])
