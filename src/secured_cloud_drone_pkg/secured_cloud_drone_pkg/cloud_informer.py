@@ -24,7 +24,6 @@ class CloudInformer(Node):
         self.amsl = 0.0
         self.groundspeed = 0.0
         self.yaw = 0.0
-        # self.subscription_started = False
 
         self.prev_latitude = 0.0
         self.prev_longitude = 0.0
@@ -41,25 +40,24 @@ class CloudInformer(Node):
         self.amsl = round(msg.linear.z,1)
         self.groundspeed = round(msg.angular.x,1)
         self.yaw = round(msg.angular.y)
-        # self.subscription_started = True
 
     def publish_to_cloud_continously(self):
-        # if self.subscription_started:
-        if ((self.prev_latitude!=self.latitude) or (self.prev_longitude!=self.longitude) or (self.prev_amsl!=self.amsl) or (self.prev_groundspeed!=self.groundspeed) or (self.prev_yaw!=self.yaw)):
-            self.ts = time.time()
-            self.telemetryCollectionRef.document(str(int(self.ts))).set({
-                u'id' :int(self.ts),
-                u'gps_location': firebase_admin.firestore.GeoPoint(self.latitude, self.longitude),
-                u'altitude_amsl': self.amsl,
-                u'groundspeed': self.groundspeed,
-                u'yaw': self.yaw,
-                u'timestamp': datetime.datetime.now()
-            })
-            self.prev_latitude = self.latitude
-            self.prev_longitude = self.longitude
-            self.prev_amsl = self.amsl
-            self.prev_groundspeed = self.groundspeed
-            self.prev_yaw = self.yaw
+        if (self.latitude!=0.0) and (self.longitude!=0.0):
+            if ((self.prev_latitude!=self.latitude) or (self.prev_longitude!=self.longitude) or (self.prev_amsl!=self.amsl) or (self.prev_groundspeed!=self.groundspeed) or (self.prev_yaw!=self.yaw)):
+                self.ts = time.time()
+                self.telemetryCollectionRef.document(str(int(self.ts))).set({
+                    u'id' :int(self.ts),
+                    u'gps_location': firebase_admin.firestore.GeoPoint(self.latitude, self.longitude),
+                    u'altitude_amsl': self.amsl,
+                    u'groundspeed': self.groundspeed,
+                    u'yaw': self.yaw,
+                    u'timestamp': datetime.datetime.now()
+                })
+                self.prev_latitude = self.latitude
+                self.prev_longitude = self.longitude
+                self.prev_amsl = self.amsl
+                self.prev_groundspeed = self.groundspeed
+                self.prev_yaw = self.yaw
 
 
 
