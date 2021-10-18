@@ -102,6 +102,12 @@ public:
 					std::cout << "pos_y_: "      << pos_y_    << std::endl;
 					std::cout << "pos_z_: "      << pos_z_    << std::endl;
 
+					if (speech_activation_status_==false)
+					{
+						std::cout << "switching off offboard "   << std::endl;
+						this->publish_vehicle_command(VehicleCommand::VEHICLE_CMD_DO_SET_MODE, 1, flight_mode_);
+					}
+
 					capture_once_ = false;
 				}
 		});

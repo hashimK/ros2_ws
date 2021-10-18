@@ -77,6 +77,11 @@ class CloudCommander(Node):
                 self.flightmode_doc_ref.update({
                     u'mode' : 6
                 })
+            else:
+                # fallback to position mode when speech interaction is stopped
+                self.flightmode_doc_ref.update({
+                    u'mode' : 3
+                })
             self.prev_speech_activated = self.speech_activated
             
     
